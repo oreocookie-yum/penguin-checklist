@@ -1,0 +1,18 @@
+{
+  "name": "오늘의 체크리스트",
+  "short_name": "펭귄 체크",
+  "description": "매일 할 일, 중요한 일정, 오늘의 기분, 감사일기를 펭귄이 응원해 주는 체크리스트",
+  "lang": "ko",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#e3f5ee",
+  "theme_color": "#e3f5ee",
+  "icons": [
+    { "src": "images/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "images/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "images/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
