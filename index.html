@@ -177,8 +177,12 @@ form.add button { border: 0; background: var(--add); color: #fff; border-radius:
 .ev-del { flex-shrink: 0; width: 30px; height: 30px; border: 0; background: none; color: var(--muted); border-radius: 8px; font-size: 18px; line-height: 1; }
 .ev-del:hover { color: var(--danger); background: var(--bg); }
 .ev-list li.past .ev-text, .ev-list li.past .ev-time { opacity: .55; }
-form.ev-add input[type="time"] { flex: 0 0 auto; width: 112px; padding: 10px 8px; }
-@media (max-width: 420px) { form.ev-add { flex-wrap: wrap; } form.ev-add input[type="text"] { flex-basis: 100%; order: -1; } form.ev-add input[type="time"] { flex: 1; width: auto; } }
+form.ev-add { flex-wrap: wrap; }
+form.ev-add input[type="text"] { flex-basis: 100%; }
+form.ev-add select { flex: 1; min-width: 0; font: inherit; font-size: 15px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 10px 8px; }
+form.ev-add select:disabled { color: var(--muted); opacity: .6; }
+form.ev-add select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+form.ev-add button { padding: 10px 18px; }
 
 .week { padding: 14px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .day { background: none; border: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; border-radius: 10px; }
@@ -285,8 +289,9 @@ form.ev-add input[type="time"] { flex: 0 0 auto; width: 112px; padding: 10px 8px
     </div>
     <ul class="ev-list" id="evList"></ul>
     <form class="add ev-add" id="evForm">
-      <input id="evTime" type="time" aria-label="시간 (선택)">
       <input id="evText" type="text" maxlength="80" placeholder="중요한 일정 (예: 3교시 공개수업)" autocomplete="off">
+      <select id="evHour" aria-label="시"><option value="">시간 없음</option></select>
+      <select id="evMin" aria-label="분" disabled></select>
       <button type="submit">추가</button>
     </form>
   </section>
@@ -841,13 +846,27 @@ form.ev-add input[type="time"] { flex: 0 0 auto; width: 112px; padding: 10px 8px
   $("prev").addEventListener("click", () => changeDay(addDays(state.selected, -1)));
   $("next").addEventListener("click", () => { if (state.selected < todayKey()) changeDay(addDays(state.selected, 1)); });
   $("todayBtn").addEventListener("click", () => changeDay(todayKey()));
+  // hour/minute pickers: plain dropdowns work the same on every phone
+  for (let h = 0; h < 24; h++) {
+    const o = document.createElement("option");
+    o.value = pad(h);
+    o.textContent = (h < 12 ? "오전 " : "오후 ") + (h % 12 === 0 ? 12 : h % 12) + "시";
+    $("evHour").appendChild(o);
+  }
+  for (let m = 0; m < 60; m += 5) {
+    const o = document.createElement("option");
+    o.value = pad(m); o.textContent = pad(m) + "분";
+    $("evMin").appendChild(o);
+  }
+  $("evHour").addEventListener("change", () => { $("evMin").disabled = !$("evHour").value; });
   $("evForm").addEventListener("submit", (e) => {
     e.preventDefault();
-    const input = $("evText"), text = input.value.trim(), time = $("evTime").value;
+    const input = $("evText"), text = input.value.trim();
+    const time = $("evHour").value ? $("evHour").value + ":" + $("evMin").value : "";
     if (!text) { input.focus(); return; }
     const k = state.selected;
     (state.events[k] = state.events[k] || []).push({ id: uid(), time: /^\d{2}:\d{2}$/.test(time) ? time : "", text });
-    input.value = ""; $("evTime").value = "";
+    input.value = ""; $("evHour").value = ""; $("evMin").value = "00"; $("evMin").disabled = true;
     saveEvents(); render(); input.focus();
   });
   $("editBtn").addEventListener("click", () => { state.editing = !state.editing; render(); });
