@@ -251,7 +251,12 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
 
 .journal { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .journal .prompt { font-size: 13px; color: var(--muted); margin: 0; }
-.jrow { display: grid; grid-template-columns: 26px 1fr; align-items: start; gap: 10px; }
+.jrows { display: flex; flex-direction: column; gap: 10px; }
+.jrow { display: grid; grid-template-columns: 26px 1fr 30px; align-items: start; gap: 10px; }
+.jdel { width: 30px; height: 30px; margin-top: 6px; border: 0; background: none; color: var(--muted); border-radius: 8px; font-size: 18px; line-height: 1; }
+.jdel:hover { color: var(--danger); background: var(--bg); }
+.jadd { align-self: flex-start; border: 1px dashed var(--line); background: none; color: var(--mint-deep); border-radius: 10px; padding: 8px 14px; font-size: 14px; font-weight: 700; margin-left: 36px; }
+.jadd:hover { background: var(--bg); }
 .jnum { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 13px; margin-top: 8px; font-variant-numeric: tabular-nums; }
 .jrow.filled .jnum { background: var(--done-soft); color: var(--done); }
 .jrow textarea { width: 100%; min-width: 0; resize: none; font: inherit; line-height: 1.5; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; min-height: 42px; field-sizing: content; overflow-wrap: anywhere; }
@@ -350,10 +355,9 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
       <span class="jsave" id="jsave">입력하면 자동 저장돼요</span>
     </div>
     <div class="journal">
-      <p class="prompt" id="jprompt">오늘 감사했던 일 세 가지를 적어 보세요.</p>
-      <div class="jrow" id="jrow0"><span class="jnum">1</span><textarea id="j0" rows="1" maxlength="300" placeholder="예: 친구가 점심을 같이 먹어 줬다" aria-label="감사한 일 1"></textarea></div>
-      <div class="jrow" id="jrow1"><span class="jnum">2</span><textarea id="j1" rows="1" maxlength="300" placeholder="예: 버스를 딱 맞춰 탔다" aria-label="감사한 일 2"></textarea></div>
-      <div class="jrow" id="jrow2"><span class="jnum">3</span><textarea id="j2" rows="1" maxlength="300" placeholder="예: 저녁 노을이 예뻤다" aria-label="감사한 일 3"></textarea></div>
+      <p class="prompt" id="jprompt">오늘 감사했던 일을 적어 보세요.</p>
+      <div class="jrows" id="jrows"></div>
+      <button type="button" class="jadd" id="jadd">＋ 감사한 일 하나 더 적기</button>
     </div>
   </section>
 
@@ -669,6 +673,45 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
   }
 
   /* ---------- render ---------- */
+  const J_MAX = 10;
+  const J_HINTS = ["예: 친구가 점심을 같이 먹어 줬다", "예: 버스를 딱 맞춰 탔다", "예: 저녁 노을이 예뻤다"];
+  function jValues() { return [...$("jrows").querySelectorAll("textarea")].map((t) => t.value); }
+  function persistJournal() {
+    const k = state.selected;
+    if (k > todayKey()) return;
+    const vals = jValues();
+    while (vals.length && !vals[vals.length - 1].trim()) vals.pop();
+    if (vals.length) state.journal[k] = vals; else delete state.journal[k];
+    saveJournal(k);
+  }
+  function buildJRows(vals, isFuture) {
+    const box = $("jrows");
+    box.innerHTML = "";
+    vals.forEach((v, i) => {
+      const row = document.createElement("div");
+      row.className = "jrow" + (v.trim() ? " filled" : "");
+      const num = document.createElement("span"); num.className = "jnum"; num.textContent = i + 1;
+      const ta = document.createElement("textarea");
+      ta.id = "j" + i; ta.rows = 1; ta.maxLength = 300; ta.value = v; ta.disabled = isFuture;
+      ta.placeholder = J_HINTS[i] || "감사한 일을 적어 보세요";
+      ta.setAttribute("aria-label", "감사한 일 " + (i + 1));
+      ta.addEventListener("input", () => { row.classList.toggle("filled", !!ta.value.trim()); persistJournal(); });
+      row.append(num, ta);
+      if (i > 0) {
+        const del = document.createElement("button");
+        del.type = "button"; del.className = "jdel"; del.textContent = "×";
+        del.setAttribute("aria-label", "감사한 일 " + (i + 1) + " 지우기");
+        del.addEventListener("click", () => {
+          const cur = jValues(); cur.splice(i, 1);
+          buildJRows(cur, false); persistJournal();
+          $("jadd").hidden = $("jrows").children.length >= J_MAX;
+        });
+        row.appendChild(del);
+      } else row.appendChild(document.createElement("span"));
+      box.appendChild(row);
+    });
+  }
+
   let journalShown = null;
   function renderJournal(fromRemote) {
     const k = state.selected, isFuture = k > todayKey();
@@ -676,14 +719,18 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
     const changedDay = journalShown !== k;
     journalShown = k;
     $("jprompt").textContent = isFuture ? "아직 오지 않은 날이에요."
-      : k === todayKey() ? "오늘 감사했던 일 세 가지를 적어 보세요."
-      : "이 날 감사했던 일이에요. 고쳐 쓸 수도 있어요.";
-    for (let i = 0; i < 3; i++) {
-      const ta = $("j" + i), v = entries[i] || "";
-      ta.disabled = isFuture;
-      if (changedDay || (fromRemote && document.activeElement !== ta)) ta.value = v;
-      $("jrow" + i).classList.toggle("filled", !!ta.value.trim());
+      : k === todayKey() ? "오늘 감사했던 일을 적어 보세요."
+      : "이 날 감사했던 일이에요.";
+    const typing = $("jrows").contains(document.activeElement);
+    if (changedDay || (fromRemote && !typing) || !$("jrows").children.length) {
+      let last = -1;
+      entries.forEach((v, i) => { if (String(v).trim()) last = i; });
+      const vals = entries.slice(0, Math.max(1, last + 1)).map(String);
+      while (vals.length < 1) vals.push("");
+      buildJRows(vals, isFuture);
     }
+    for (const ta of $("jrows").querySelectorAll("textarea")) ta.disabled = isFuture;
+    $("jadd").hidden = isFuture || $("jrows").children.length >= J_MAX;
     if (changedDay) $("jsave").textContent = "입력하면 자동 저장돼요";
   }
 
@@ -1078,16 +1125,15 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
     input.value = "";
     saveRoutine(); render(); input.focus();
   });
-  for (let i = 0; i < 3; i++) {
-    $("j" + i).addEventListener("input", () => {
-      const k = state.selected;
-      if (k > todayKey()) return;
-      const vals = [0, 1, 2].map((n) => $("j" + n).value);
-      if (vals.some((v) => v.trim())) state.journal[k] = vals; else delete state.journal[k];
-      $("jrow" + i).classList.toggle("filled", !!vals[i].trim());
-      saveJournal(k);
-    });
-  }
+  $("jadd").addEventListener("click", () => {
+    if (state.selected > todayKey()) return;
+    const vals = jValues();
+    if (vals.length >= J_MAX) return;
+    vals.push("");
+    buildJRows(vals, false);
+    $("jadd").hidden = vals.length >= J_MAX;
+    $("j" + (vals.length - 1)).focus();
+  });
   // roll over to the new day if the page stays open past midnight
   let lastToday = todayKey();
   setInterval(() => { const t = todayKey(); if (t !== lastToday) { if (state.selected === lastToday) state.selected = t; lastToday = t; render(); } }, 60000);
