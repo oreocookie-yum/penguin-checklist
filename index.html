@@ -161,6 +161,20 @@ li.done .text { color: var(--muted); text-decoration: line-through; text-decorat
 .del { display: none; border: 0; background: none; color: var(--danger); font-size: 13px; font-weight: 700; padding: 6px 4px; flex-shrink: 0; }
 .editing .del { display: block; }
 .editing .check { cursor: default; }
+.task-edit { flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+.task-edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.edit-note { font-size: 12px; color: var(--muted); padding: 8px 14px; background: var(--done-soft); }
+.ev-edit { flex-shrink: 0; height: 30px; padding: 0 8px; border: 0; background: none; color: var(--accent); border-radius: 8px; font-size: 13px; font-weight: 700; }
+.ev-edit:hover { background: var(--bg); }
+.ev-list li.ev-editing { flex-wrap: wrap; gap: 8px; padding: 10px 14px; background: var(--bg); }
+.ev-editing .ev-etext { flex-basis: 100%; min-width: 0; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; }
+.ev-editing select { flex: 1; min-width: 0; font: inherit; font-size: 15px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 9px 8px; }
+.ev-editing select:disabled { color: var(--muted); opacity: .6; }
+.ev-editing .ev-btns { flex-basis: 100%; display: flex; justify-content: flex-end; gap: 8px; }
+.ev-editing .ev-btns button { border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 10px; padding: 8px 16px; font-weight: 700; }
+.ev-editing .ev-btns .save { background: var(--add); border-color: var(--add); color: #fff; }
+.ev-editing .ev-msg { flex-basis: 100%; font-size: 12px; color: var(--danger); }
+.ev-editing .ev-msg:empty { display: none; }
 .empty { padding: 26px 14px; text-align: center; color: var(--muted); font-size: 14px; }
 
 form.add { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); background: var(--bg); }
@@ -299,8 +313,9 @@ form.ev-add button { padding: 10px 18px; }
   <section class="card" id="listCard">
     <div class="card-head">
       <span class="label">매일 할 일</span>
-      <button class="link" id="editBtn">편집</button>
+      <button class="link" id="editBtn">수정</button>
     </div>
+    <div class="edit-note" id="editNote" hidden>글자를 눌러 바로 고칠 수 있어요. 다 고쳤으면 '완료'를 누르세요.</div>
     <div class="example-note" id="exampleNote" hidden>예시 목록이에요. 항목을 추가하거나 지우면 내 목록으로 저장돼요.</div>
     <ul id="list"></ul>
     <form class="add" id="addForm">
@@ -398,6 +413,7 @@ form.ev-add button { padding: 10px 18px; }
     selected: todayKey(),
     editing: false,
     pickerOpen: false,
+    evEdit: null,      // event being edited: { id, text, hour, min }
     chartOpen: false,
     moodSaid: null,    // day key whose freshly picked mood the penguin is answering
     mode: "loading",   // loading | db | local
@@ -696,6 +712,56 @@ form.ev-add button { padding: 10px 18px; }
     $("xlab").innerHTML = days.map((x) => "<span><b>" + DOW[x.d.getDay()] + "</b>" + (x.d.getMonth() + 1) + "/" + x.d.getDate() + "</span>").join("");
   }
 
+  function fillTimeSelects(hourSel, minSel, hour, min) {
+    const none = document.createElement("option"); none.value = ""; none.textContent = "시간 없음";
+    hourSel.appendChild(none);
+    for (let h = 0; h < 24; h++) {
+      const o = document.createElement("option");
+      o.value = pad(h); o.textContent = (h < 12 ? "오전 " : "오후 ") + (h % 12 === 0 ? 12 : h % 12) + "시";
+      hourSel.appendChild(o);
+    }
+    const mins = [];
+    for (let m = 0; m < 60; m += 5) mins.push(pad(m));
+    if (min && !mins.includes(min)) { mins.push(min); mins.sort(); }
+    for (const m of mins) { const o = document.createElement("option"); o.value = m; o.textContent = m + "분"; minSel.appendChild(o); }
+    hourSel.value = hour || ""; minSel.value = min || "00";
+    minSel.disabled = !hourSel.value;
+  }
+
+  function eventEditor(k, ev) {
+    const d = state.evEdit;
+    const li = document.createElement("li");
+    li.className = "ev-editing";
+    const tx = document.createElement("input");
+    tx.type = "text"; tx.className = "ev-etext"; tx.maxLength = 80; tx.value = d.text; tx.id = "ev-etext";
+    tx.setAttribute("aria-label", "일정 내용");
+    const hs = document.createElement("select"); hs.id = "ev-ehour"; hs.setAttribute("aria-label", "시");
+    const ms = document.createElement("select"); ms.id = "ev-emin"; ms.setAttribute("aria-label", "분");
+    fillTimeSelects(hs, ms, d.hour, d.min);
+    const msg = document.createElement("div"); msg.className = "ev-msg";
+    const btns = document.createElement("div"); btns.className = "ev-btns";
+    const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = "취소";
+    const save = document.createElement("button"); save.type = "button"; save.className = "save"; save.textContent = "저장";
+    btns.append(cancel, save);
+    tx.addEventListener("input", () => { d.text = tx.value; });
+    hs.addEventListener("change", () => { d.hour = hs.value; ms.disabled = !hs.value; });
+    ms.addEventListener("change", () => { d.min = ms.value; });
+    const commit = () => {
+      const text = tx.value.trim();
+      if (!text) { msg.textContent = "일정 내용을 적어 주세요."; tx.focus(); return; }
+      const item = (state.events[k] || []).find((x) => x.id === ev.id);
+      if (item) { item.text = text; item.time = hs.value ? hs.value + ":" + ms.value : ""; }
+      state.evEdit = null;
+      saveEvents(); render();
+    };
+    save.addEventListener("click", commit);
+    tx.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } if (e.key === "Escape") cancel.click(); });
+    cancel.addEventListener("click", () => { state.evEdit = null; render(); });
+    li.append(tx, hs, ms, msg, btns);
+    if (d.focus) { d.focus = false; setTimeout(() => { tx.focus(); }, 0); }
+    return li;
+  }
+
   function renderEvents(k, today) {
     const list = (state.events[k] || []).slice().sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
     $("evLabel").textContent = k === today ? "오늘의 중요한 일정" : k > today ? "이 날의 중요한 일정 (미리 적기)" : "이 날의 중요한 일정";
@@ -712,6 +778,7 @@ form.ev-add button { padding: 10px 18px; }
     const now = new Date(), nowHM = pad(now.getHours()) + ":" + pad(now.getMinutes());
     for (const ev of list) {
       const li = document.createElement("li");
+      if (state.evEdit && state.evEdit.id === ev.id) { ul.appendChild(eventEditor(k, ev)); continue; }
       if (k < today || (k === today && ev.time && ev.time < nowHM)) li.classList.add("past");
       const t = document.createElement("span");
       t.className = "ev-time" + (ev.time ? "" : " none");
@@ -726,7 +793,15 @@ form.ev-add button { padding: 10px 18px; }
         if (!state.events[k].length) delete state.events[k];
         saveEvents(); render();
       });
-      li.append(t, tx, del);
+      const ed = document.createElement("button");
+      ed.type = "button"; ed.className = "ev-edit"; ed.textContent = "수정";
+      ed.setAttribute("aria-label", ev.text + " 일정 고치기");
+      ed.addEventListener("click", () => {
+        const [h, m] = ev.time ? ev.time.split(":") : ["", "00"];
+        state.evEdit = { id: ev.id, text: ev.text, hour: h, min: m, focus: true };
+        render();
+      });
+      li.append(t, tx, ed, del);
       ul.appendChild(li);
     }
   }
@@ -770,7 +845,8 @@ form.ev-add button { padding: 10px 18px; }
 
     $("exampleNote").hidden = !state.isExample;
     $("listCard").classList.toggle("editing", state.editing);
-    $("editBtn").textContent = state.editing ? "완료" : "편집";
+    $("editBtn").textContent = state.editing ? "완료" : "수정";
+    $("editNote").hidden = !state.editing || !total;
 
     const ul = $("list");
     ul.innerHTML = "";
@@ -798,7 +874,21 @@ form.ev-add button { padding: 10px 18px; }
         state.tasks = state.tasks.filter((x) => x.id !== t.id);
         saveRoutine(); render();
       });
-      li.append(btn, del);
+      if (state.editing) {
+        const inp = document.createElement("input");
+        inp.type = "text"; inp.className = "task-edit"; inp.maxLength = 80; inp.value = t.text;
+        inp.id = "task-edit-" + t.id;
+        inp.setAttribute("aria-label", "할 일 고치기");
+        inp.addEventListener("input", () => {
+          const v = inp.value.trim();
+          if (v) { t.text = v; saveRoutine(); }
+        });
+        inp.addEventListener("blur", () => { if (!inp.value.trim()) inp.value = t.text; });
+        inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } });
+        li.append(inp, del);
+      } else {
+        li.append(btn, del);
+      }
       ul.appendChild(li);
     }
 
@@ -842,7 +932,7 @@ form.ev-add button { padding: 10px 18px; }
     if (state.pickerOpen && !e.target.closest("#moodPicker, #moodBtn")) { state.pickerOpen = false; render(); }
   });
 
-  const changeDay = (k) => { state.selected = k; state.moodSaid = null; state.pickerOpen = false; render(); };
+  const changeDay = (k) => { state.evEdit = null; state.selected = k; state.moodSaid = null; state.pickerOpen = false; render(); };
   $("prev").addEventListener("click", () => changeDay(addDays(state.selected, -1)));
   $("next").addEventListener("click", () => { if (state.selected < todayKey()) changeDay(addDays(state.selected, 1)); });
   $("todayBtn").addEventListener("click", () => changeDay(todayKey()));
