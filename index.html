@@ -197,6 +197,19 @@ form.ev-add select { flex: 1; min-width: 0; font: inherit; font-size: 15px; colo
 form.ev-add select:disabled { color: var(--muted); opacity: .6; }
 form.ev-add select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 form.ev-add button { padding: 10px 18px; }
+form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
+.ev-addmsg { font-size: 13px; color: var(--mint-deep); padding: 0 14px 10px; background: var(--bg); margin-top: -2px; }
+.ev-up { border-top: 1px solid var(--line); }
+.ev-up-head { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 14px 4px; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--muted); }
+.ev-up-head span { font-weight: 400; letter-spacing: 0; }
+.ev-up ul li { min-height: 0; border-bottom: 0; padding: 0 8px; }
+.ev-up-row { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; background: none; border: 0; border-radius: 10px; padding: 8px 6px; text-align: left; }
+.ev-up-row:hover { background: var(--bg); }
+.ev-up-date { flex-shrink: 0; min-width: 74px; font-size: 13px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.ev-up-date small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+.ev-up-time { flex-shrink: 0; font-size: 12px; color: var(--mint-deep); font-variant-numeric: tabular-nums; min-width: 38px; }
+.ev-up-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ev-up-more { font-size: 12px; color: var(--muted); padding: 2px 14px 12px; }
 
 .week { padding: 14px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
 .day { background: none; border: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; border-radius: 10px; }
@@ -304,10 +317,17 @@ form.ev-add button { padding: 10px 18px; }
     <ul class="ev-list" id="evList"></ul>
     <form class="add ev-add" id="evForm">
       <input id="evText" type="text" maxlength="80" placeholder="중요한 일정 (예: 3교시 공개수업)" autocomplete="off">
+      <select id="evDate" aria-label="날짜"></select>
       <select id="evHour" aria-label="시"><option value="">시간 없음</option></select>
       <select id="evMin" aria-label="분" disabled></select>
       <button type="submit">추가</button>
     </form>
+    <div class="ev-addmsg" id="evAddMsg" aria-live="polite" hidden></div>
+    <div class="ev-up" id="evUp" hidden>
+      <div class="ev-up-head">다가오는 일정 <span id="evUpRange">앞으로 60일</span></div>
+      <ul id="evUpList"></ul>
+      <div class="ev-up-more" id="evUpMore" hidden></div>
+    </div>
   </section>
 
   <section class="card" id="listCard">
@@ -712,6 +732,75 @@ form.ev-add button { padding: 10px 18px; }
     $("xlab").innerHTML = days.map((x) => "<span><b>" + DOW[x.d.getDay()] + "</b>" + (x.d.getMonth() + 1) + "/" + x.d.getDate() + "</span>").join("");
   }
 
+  const FUTURE_DAYS = 365;
+  function daysBetween(a, b) { return Math.round((parseKey(b) - parseKey(a)) / 86400000); }
+  function relDay(k, today) {
+    const n = daysBetween(today, k);
+    if (n === 0) return "오늘";
+    if (n === 1) return "내일";
+    if (n === -1) return "어제";
+    return n > 0 ? n + "일 뒤" : (-n) + "일 전";
+  }
+  function dayLabel(k, today) {
+    const d = parseKey(k);
+    let s = (d.getMonth() + 1) + "월 " + d.getDate() + "일 (" + DOW[d.getDay()] + ")";
+    const n = daysBetween(today, k);
+    if (n === 0) s += " · 오늘"; else if (n === 1) s += " · 내일";
+    return s;
+  }
+  // date dropdown: the viewed day (if it is in the past) plus today and the next FUTURE_DAYS days
+  function fillDateSelect(sel, value, today) {
+    sel.innerHTML = "";
+    const keys = [];
+    if (value < today) keys.push(value);
+    for (let i = 0; i <= FUTURE_DAYS; i++) keys.push(addDays(today, i));
+    if (value > keys[keys.length - 1]) keys.push(value);
+    let month = "", group = null;
+    for (const key of keys) {
+      const m = key.slice(0, 7);
+      if (m !== month) {
+        month = m; group = document.createElement("optgroup");
+        group.label = Number(m.slice(0, 4)) + "년 " + Number(m.slice(5)) + "월";
+        sel.appendChild(group);
+      }
+      const o = document.createElement("option");
+      o.value = key; o.textContent = dayLabel(key, today);
+      group.appendChild(o);
+    }
+    sel.value = value;
+  }
+
+  function renderUpcoming(k, today) {
+    const RANGE = 60, end = addDays(today, RANGE), rows = [];
+    for (const day of Object.keys(state.events)) {
+      if (day <= today || day > end) continue;
+      for (const ev of state.events[day]) rows.push({ day, ev });
+    }
+    rows.sort((a, b) => a.day.localeCompare(b.day) || (a.ev.time || "99").localeCompare(b.ev.time || "99"));
+    $("evUp").hidden = !rows.length;
+    $("evUpRange").textContent = "앞으로 " + RANGE + "일";
+    const ul = $("evUpList");
+    ul.innerHTML = "";
+    const MAX = 8;
+    for (const { day, ev } of rows.slice(0, MAX)) {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ev-up-row";
+      const d = parseKey(day);
+      b.innerHTML = '<span class="ev-up-date"></span><span class="ev-up-time"></span><span class="ev-up-text"></span>';
+      b.children[0].innerHTML = (d.getMonth() + 1) + "/" + d.getDate() + " (" + DOW[d.getDay()] + ")<small>" + relDay(day, today) + "</small>";
+      b.children[1].textContent = ev.time || "종일";
+      b.children[2].textContent = ev.text;
+      b.setAttribute("aria-label", dayLabel(day, today) + " " + (ev.time || "종일") + " " + ev.text + ", 그날로 가기");
+      if (day === k) b.style.background = "var(--accent-soft)";
+      b.addEventListener("click", () => { changeDay(day); window.scrollTo({ top: $("evCard").offsetTop - 12, behavior: "smooth" }); });
+      li.appendChild(b);
+      ul.appendChild(li);
+    }
+    $("evUpMore").hidden = rows.length <= MAX;
+    $("evUpMore").textContent = "외 " + (rows.length - MAX) + "개 더 있어요. ▶ 버튼으로 날짜를 넘기면 볼 수 있어요.";
+  }
+
   function fillTimeSelects(hourSel, minSel, hour, min) {
     const none = document.createElement("option"); none.value = ""; none.textContent = "시간 없음";
     hourSel.appendChild(none);
@@ -738,6 +827,9 @@ form.ev-add button { padding: 10px 18px; }
     const hs = document.createElement("select"); hs.id = "ev-ehour"; hs.setAttribute("aria-label", "시");
     const ms = document.createElement("select"); ms.id = "ev-emin"; ms.setAttribute("aria-label", "분");
     fillTimeSelects(hs, ms, d.hour, d.min);
+    const ds = document.createElement("select"); ds.id = "ev-edate"; ds.className = "ev-edate"; ds.setAttribute("aria-label", "날짜");
+    fillDateSelect(ds, d.date || k, todayKey());
+    ds.addEventListener("change", () => { d.date = ds.value; });
     const msg = document.createElement("div"); msg.className = "ev-msg";
     const btns = document.createElement("div"); btns.className = "ev-btns";
     const cancel = document.createElement("button"); cancel.type = "button"; cancel.textContent = "취소";
@@ -750,19 +842,33 @@ form.ev-add button { padding: 10px 18px; }
       const text = tx.value.trim();
       if (!text) { msg.textContent = "일정 내용을 적어 주세요."; tx.focus(); return; }
       const item = (state.events[k] || []).find((x) => x.id === ev.id);
-      if (item) { item.text = text; item.time = hs.value ? hs.value + ":" + ms.value : ""; }
+      if (item) {
+        item.text = text; item.time = hs.value ? hs.value + ":" + ms.value : "";
+        const to = ds.value;
+        if (to && to !== k) {
+          state.events[k] = state.events[k].filter((x) => x.id !== ev.id);
+          if (!state.events[k].length) delete state.events[k];
+          (state.events[to] = state.events[to] || []).push(item);
+          const am = $("evAddMsg");
+          am.textContent = dayLabel(to, todayKey()) + "(으)로 옮겼어요."; am.hidden = false;
+          clearTimeout(am._t); am._t = setTimeout(() => { am.hidden = true; }, 5000);
+        }
+      }
       state.evEdit = null;
       saveEvents(); render();
     };
     save.addEventListener("click", commit);
     tx.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } if (e.key === "Escape") cancel.click(); });
     cancel.addEventListener("click", () => { state.evEdit = null; render(); });
-    li.append(tx, hs, ms, msg, btns);
+    li.append(tx, ds, hs, ms, msg, btns);
     if (d.focus) { d.focus = false; setTimeout(() => { tx.focus(); }, 0); }
     return li;
   }
 
+  let evDateFor = "";
   function renderEvents(k, today) {
+    if (evDateFor !== k + "|" + today) { evDateFor = k + "|" + today; fillDateSelect($("evDate"), k, today); }
+    renderUpcoming(k, today);
     const list = (state.events[k] || []).slice().sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
     $("evLabel").textContent = k === today ? "오늘의 중요한 일정" : k > today ? "이 날의 중요한 일정 (미리 적기)" : "이 날의 중요한 일정";
     $("evCount").textContent = list.length ? list.length + "개" : "";
@@ -798,7 +904,7 @@ form.ev-add button { padding: 10px 18px; }
       ed.setAttribute("aria-label", ev.text + " 일정 고치기");
       ed.addEventListener("click", () => {
         const [h, m] = ev.time ? ev.time.split(":") : ["", "00"];
-        state.evEdit = { id: ev.id, text: ev.text, hour: h, min: m, focus: true };
+        state.evEdit = { id: ev.id, text: ev.text, date: k, hour: h, min: m, focus: true };
         render();
       });
       li.append(t, tx, ed, del);
@@ -811,9 +917,9 @@ form.ev-add button { padding: 10px 18px; }
   function render() {
     const k = state.selected, today = todayKey(), d = parseKey(k);
     const isFuture = k > today;
-    $("eyebrow").textContent = k.replace(/-/g, ".") + (k === today ? " · 오늘" : "");
+    $("eyebrow").textContent = k.replace(/-/g, ".") + " · " + relDay(k, today);
     $("title").textContent = (d.getMonth() + 1) + "월 " + d.getDate() + "일 " + DOW[d.getDay()] + "요일";
-    $("next").disabled = k >= today;
+    $("next").disabled = k >= addDays(today, FUTURE_DAYS);
     $("todayBtn").disabled = k === today;
 
     const s = doneSet(k);
@@ -934,7 +1040,7 @@ form.ev-add button { padding: 10px 18px; }
 
   const changeDay = (k) => { state.evEdit = null; state.selected = k; state.moodSaid = null; state.pickerOpen = false; render(); };
   $("prev").addEventListener("click", () => changeDay(addDays(state.selected, -1)));
-  $("next").addEventListener("click", () => { if (state.selected < todayKey()) changeDay(addDays(state.selected, 1)); });
+  $("next").addEventListener("click", () => { if (state.selected < addDays(todayKey(), FUTURE_DAYS)) changeDay(addDays(state.selected, 1)); });
   $("todayBtn").addEventListener("click", () => changeDay(todayKey()));
   // hour/minute pickers: plain dropdowns work the same on every phone
   for (let h = 0; h < 24; h++) {
@@ -954,9 +1060,13 @@ form.ev-add button { padding: 10px 18px; }
     const input = $("evText"), text = input.value.trim();
     const time = $("evHour").value ? $("evHour").value + ":" + $("evMin").value : "";
     if (!text) { input.focus(); return; }
-    const k = state.selected;
+    const k = /^\d{4}-\d{2}-\d{2}$/.test($("evDate").value) ? $("evDate").value : state.selected;
+    const am = $("evAddMsg");
+    if (k !== state.selected) { am.textContent = dayLabel(k, todayKey()) + "에 넣었어요. 아래 '다가오는 일정'에서 볼 수 있어요."; am.hidden = false; }
+    else am.hidden = true;
+    clearTimeout(am._t); am._t = setTimeout(() => { am.hidden = true; }, 5000);
     (state.events[k] = state.events[k] || []).push({ id: uid(), time: /^\d{2}:\d{2}$/.test(time) ? time : "", text });
-    input.value = ""; $("evHour").value = ""; $("evMin").value = "00"; $("evMin").disabled = true;
+    input.value = ""; $("evHour").value = ""; $("evMin").value = "00"; $("evMin").disabled = true; $("evDate").value = state.selected;
     saveEvents(); render(); input.focus();
   });
   $("editBtn").addEventListener("click", () => { state.editing = !state.editing; render(); });
