@@ -257,6 +257,26 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
 .jdel:hover { color: var(--danger); background: var(--bg); }
 .jadd { align-self: flex-start; border: 1px dashed var(--line); background: none; color: var(--mint-deep); border-radius: 10px; padding: 8px 14px; font-size: 14px; font-weight: 700; margin-left: 36px; }
 .jadd:hover { background: var(--bg); }
+.jhead-tools { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.jhead-tools .jsave { min-width: 0; text-align: right; }
+.jall { border-top: 1px solid var(--line); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.jall-sum { margin: 0; font-size: 13px; color: var(--muted); }
+.jall-sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.jall-search { width: 100%; min-width: 0; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; }
+.jall-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.jall-list { display: flex; flex-direction: column; gap: 14px; }
+.jall-month { font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--muted); padding-top: 4px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.jall-day { display: flex; flex-direction: column; gap: 6px; }
+.jall-date { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 2px 0; font-size: 14px; font-weight: 700; color: var(--accent); }
+.jall-date:hover { text-decoration: underline; }
+.jall-date .m { font-size: 16px; }
+.jall-day ol { margin: 0; padding: 0 0 0 4px; list-style: none; display: flex; flex-direction: column; gap: 4px; counter-reset: j; }
+.jall-day li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; min-height: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
+.jall-day li::before { counter-increment: j; content: counter(j); width: 22px; height: 22px; border-radius: 50%; background: var(--done-soft); color: var(--done); font-size: 12px; display: grid; place-items: center; margin-top: 1px; font-variant-numeric: tabular-nums; }
+.jall-day li span { min-width: 0; }
+.jall mark { background: var(--accent-soft); color: var(--accent); border-radius: 3px; padding: 0 1px; }
+.jall-empty { font-size: 14px; color: var(--muted); text-align: center; padding: 14px 0; margin: 0; }
+.jall-more { align-self: center; margin-left: 0; }
 .jnum { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 13px; margin-top: 8px; font-variant-numeric: tabular-nums; }
 .jrow.filled .jnum { background: var(--done-soft); color: var(--done); }
 .jrow textarea { width: 100%; min-width: 0; resize: none; font: inherit; line-height: 1.5; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; min-height: 42px; field-sizing: content; overflow-wrap: anywhere; }
@@ -352,12 +372,21 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
   <section class="card">
     <div class="card-head">
       <span class="label">감사일기</span>
-      <span class="jsave" id="jsave">입력하면 자동 저장돼요</span>
+      <div class="jhead-tools">
+        <span class="jsave" id="jsave">입력하면 자동 저장돼요</span>
+        <button class="chart-btn" id="jallBtn" type="button" aria-expanded="false" aria-controls="jall"><svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="2" width="12" height="2" rx="1"/><rect x="1" y="6" width="12" height="2" rx="1"/><rect x="1" y="10" width="8" height="2" rx="1"/></svg><span id="jallBtnText">모아 보기</span></button>
+      </div>
     </div>
     <div class="journal">
       <p class="prompt" id="jprompt">오늘 감사했던 일을 적어 보세요.</p>
       <div class="jrows" id="jrows"></div>
       <button type="button" class="jadd" id="jadd">＋ 감사한 일 하나 더 적기</button>
+    </div>
+    <div class="jall" id="jall" hidden>
+      <p class="jall-sum" id="jallSum"></p>
+      <input class="jall-search" id="jallSearch" type="search" placeholder="낱말로 찾기 (예: 커피)" autocomplete="off" aria-label="감사일기에서 찾기">
+      <div class="jall-list" id="jallList"></div>
+      <button type="button" class="jadd jall-more" id="jallMore" hidden>더 보기</button>
     </div>
   </section>
 
@@ -673,6 +702,90 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
   }
 
   /* ---------- render ---------- */
+  /* ---------- gratitude journal: everything at a glance ---------- */
+  let jallOpen = false, jallLimit = 30, jallState = "idle"; // idle | loading | ready | error
+  async function loadAllJournal() {
+    if (state.mode !== "db" || !userCol) { jallState = "ready"; return; }
+    jallState = "loading"; renderJAll();
+    try {
+      const snap = await userCol.get();
+      for (const doc of snap.docs) {
+        if (!doc.id.startsWith("journal-")) continue;
+        const month = doc.id.slice(8), w = writers["j-" + month];
+        if (w && (w.busy || w.dirty)) continue;
+        for (const k of Object.keys(state.journal)) if (monthOf(k) === month) delete state.journal[k];
+        const days = (doc.data() || {}).days || {};
+        for (const k of Object.keys(days)) if (Array.isArray(days[k])) state.journal[k] = days[k].map(String);
+      }
+      jallState = "ready";
+    } catch (e) { jallState = "error"; }
+    renderJAll();
+  }
+  function markText(el, text, q) {
+    if (!q) { el.textContent = text; return; }
+    const low = text.toLowerCase(), ql = q.toLowerCase();
+    let i = 0, j;
+    while ((j = low.indexOf(ql, i)) !== -1) {
+      el.appendChild(document.createTextNode(text.slice(i, j)));
+      const m = document.createElement("mark"); m.textContent = text.slice(j, j + q.length); el.appendChild(m);
+      i = j + q.length;
+    }
+    el.appendChild(document.createTextNode(text.slice(i)));
+  }
+  function renderJAll() {
+    $("jall").hidden = !jallOpen;
+    $("jallBtn").setAttribute("aria-expanded", jallOpen ? "true" : "false");
+    $("jallBtnText").textContent = jallOpen ? "닫기" : "모아 보기";
+    if (!jallOpen) return;
+    const list = $("jallList"), sum = $("jallSum"), more = $("jallMore");
+    list.innerHTML = ""; more.hidden = true;
+    if (jallState === "loading") { sum.textContent = "지난 감사일기를 불러오는 중…"; return; }
+    const q = $("jallSearch").value.trim();
+    const today = todayKey();
+    const all = Object.keys(state.journal).sort().reverse()
+      .map((k) => ({ k, items: (state.journal[k] || []).map(String).filter((v) => v.trim()) }))
+      .filter((d) => d.items.length);
+    const total = all.reduce((a, d) => a + d.items.length, 0);
+    const shown = q ? all.map((d) => ({ k: d.k, items: d.items.filter((v) => v.toLowerCase().includes(q.toLowerCase())) })).filter((d) => d.items.length) : all;
+    if (!all.length) {
+      sum.textContent = "";
+      list.innerHTML = '<p class="jall-empty">아직 적은 감사일기가 없어요.</p>';
+      $("jallSearch").hidden = true;
+      return;
+    }
+    $("jallSearch").hidden = false;
+    if (q) sum.innerHTML = "‘<b></b>’이(가) 들어간 감사한 일 <b>" + shown.reduce((a, d) => a + d.items.length, 0) + "</b>개";
+    else sum.innerHTML = "지금까지 <b>" + all.length + "</b>일 동안 감사한 일 <b>" + total + "</b>개를 적었어요.";
+    if (q) sum.querySelector("b").textContent = q;
+    if (jallState === "error") sum.appendChild(document.createTextNode(" (지난 달 기록 일부를 불러오지 못했어요.)"));
+    if (!shown.length) { list.innerHTML = '<p class="jall-empty">찾는 낱말이 들어간 감사일기가 없어요.</p>'; return; }
+    let month = "";
+    for (const d of shown.slice(0, jallLimit)) {
+      const m = d.k.slice(0, 7);
+      if (m !== month) {
+        month = m;
+        const h = document.createElement("div"); h.className = "jall-month";
+        h.textContent = Number(m.slice(0, 4)) + "년 " + Number(m.slice(5)) + "월";
+        list.appendChild(h);
+      }
+      const box = document.createElement("div"); box.className = "jall-day";
+      const date = document.createElement("button"); date.type = "button"; date.className = "jall-date";
+      const dd = parseKey(d.k), mood = moodOf(state.mood[d.k]);
+      date.textContent = (dd.getMonth() + 1) + "월 " + dd.getDate() + "일 (" + DOW[dd.getDay()] + ")" + (d.k === today ? " · 오늘" : "");
+      if (mood) { const s = document.createElement("span"); s.className = "m"; s.textContent = mood.e; s.title = mood.t; date.appendChild(s); }
+      date.setAttribute("aria-label", date.textContent + ", 그날로 가기");
+      date.addEventListener("click", () => {
+        changeDay(d.k);
+        $("jprompt").closest(".card").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      const ol = document.createElement("ol");
+      for (const v of d.items) { const li = document.createElement("li"); const sp = document.createElement("span"); markText(sp, v, q); li.appendChild(sp); ol.appendChild(li); }
+      box.append(date, ol);
+      list.appendChild(box);
+    }
+    if (shown.length > jallLimit) { more.hidden = false; more.textContent = "더 보기 (" + (shown.length - jallLimit) + "일 더)"; }
+  }
+
   const J_MAX = 10;
   const J_HINTS = ["예: 친구가 점심을 같이 먹어 줬다", "예: 버스를 딱 맞춰 탔다", "예: 저녁 노을이 예뻤다"];
   function jValues() { return [...$("jrows").querySelectorAll("textarea")].map((t) => t.value); }
@@ -683,6 +796,7 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
     while (vals.length && !vals[vals.length - 1].trim()) vals.pop();
     if (vals.length) state.journal[k] = vals; else delete state.journal[k];
     saveJournal(k);
+    renderJAll();
   }
   function buildJRows(vals, isFuture) {
     const box = $("jrows");
@@ -732,6 +846,7 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
     for (const ta of $("jrows").querySelectorAll("textarea")) ta.disabled = isFuture;
     $("jadd").hidden = isFuture || $("jrows").children.length >= J_MAX;
     if (changedDay) $("jsave").textContent = "입력하면 자동 저장돼요";
+    renderJAll();
   }
 
   function renderMood(k, isFuture) {
@@ -1125,6 +1240,13 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
     input.value = "";
     saveRoutine(); render(); input.focus();
   });
+  $("jallBtn").addEventListener("click", () => {
+    jallOpen = !jallOpen; jallLimit = 30;
+    if (jallOpen && jallState !== "ready") loadAllJournal();
+    renderJAll();
+  });
+  $("jallSearch").addEventListener("input", () => { jallLimit = 30; renderJAll(); });
+  $("jallMore").addEventListener("click", () => { jallLimit += 30; renderJAll(); });
   $("jadd").addEventListener("click", () => {
     if (state.selected > todayKey()) return;
     const vals = jValues();
