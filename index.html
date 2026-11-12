@@ -105,6 +105,34 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .datebox { min-width: 0; }
 .eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .06em; color: var(--muted); }
 h1 { font-family: var(--f-display); font-weight: 400; font-size: 34px; line-height: 1.1; margin: 2px 0 0; text-wrap: balance; }
+.datebtn #title { word-break: keep-all; }
+.datebtn { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 2px 6px 2px 0; margin-left: -2px; border-radius: 10px; font: inherit; color: inherit; text-align: left; }
+.datebtn:hover .caret { background: var(--accent-soft); color: var(--accent); }
+.datebtn .caret { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--paper); border: 1px solid var(--line); color: var(--muted); font-size: 12px; transition: transform .2s; }
+.datebtn[aria-expanded="true"] .caret { transform: rotate(180deg); background: var(--accent); border-color: var(--accent); color: #fff; }
+.cal { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-top: -6px; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.cal-head b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.cal-head button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-size: 14px; }
+.cal-head button:disabled { opacity: .35; cursor: default; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-dow { text-align: center; font-size: 12px; color: var(--muted); padding: 4px 0; }
+.cal-dow.sun, .cal-day.sun .n { color: var(--danger); }
+.cal-day { aspect-ratio: 1 / 1; max-height: 52px; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: none; border: 0; border-radius: 10px; padding: 0; font-variant-numeric: tabular-nums; }
+.cal-day:hover:not(:disabled) { background: var(--bg); }
+.cal-day .n { font-size: 15px; line-height: 1; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; }
+.cal-day .marks { display: flex; align-items: center; gap: 3px; height: 5px; }
+.cal-day .marks i { width: 5px; height: 5px; border-radius: 50%; }
+.cal-day .marks .full { background: var(--done); }
+.cal-day .marks .part { background: var(--mint); }
+.cal-day .marks .ev, .cal-foot i.ev { width: 10px; height: 3px; border-radius: 2px; background: var(--ink); opacity: .55; }
+.cal-day.today .n { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent); font-weight: 700; }
+.cal-day.sel .n { background: var(--accent); color: #fff; box-shadow: none; }
+.cal-day:disabled { opacity: .3; cursor: default; }
+.cal-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 12px; margin-top: 8px; font-size: 11px; color: var(--muted); }
+.cal-foot span { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; }
+.cal-foot i { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.cal-foot .link { font-size: 13px; }
 .nav { display: flex; gap: 6px; flex-shrink: 0; }
 .nav button { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); font-size: 16px; }
 .nav button:disabled { opacity: .35; cursor: default; }
@@ -327,7 +355,7 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
   <header>
     <div class="datebox">
       <div class="eyebrow" id="eyebrow">2026.11.04</div>
-      <h1 id="title">11월 4일 수요일</h1>
+      <h1><button class="datebtn" id="dateBtn" type="button" aria-expanded="false" aria-controls="calendar" aria-label="날짜 고르기"><span id="title">11월 4일 수요일</span><span class="caret" aria-hidden="true">▼</span></button></h1>
     </div>
     <div class="nav">
       <button id="prev" aria-label="전날">◀</button>
@@ -335,6 +363,19 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
       <button id="next" aria-label="다음날">▶</button>
     </div>
   </header>
+
+  <div class="cal" id="calendar" hidden>
+    <div class="cal-head">
+      <button type="button" id="calPrev" aria-label="이전 달">◀</button>
+      <b id="calLabel" aria-live="polite"></b>
+      <button type="button" id="calNext" aria-label="다음 달">▶</button>
+    </div>
+    <div class="cal-grid" id="calGrid" role="grid"></div>
+    <div class="cal-foot">
+      <div><span><i style="background:var(--done)"></i>모두 완료</span><span><i style="background:var(--mint)"></i>일부 완료</span><span><i class="ev"></i>일정</span></div>
+      <button type="button" class="link" id="calToday">오늘로</button>
+    </div>
+  </div>
 
   <section class="cheer">
     <div class="pup" id="pup" role="img" aria-label="날개를 파닥이며 응원하는 새끼 황제펭귄">
@@ -1148,9 +1189,9 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
   /* ---------- seasons: background colour + a few drifting petals, drops, leaves or snow ---------- */
   const SEASONS = {
     spring: { name: "봄", colors: ["#f6b5c8", "#f9cbd8", "#f3a0b9"], kind: "petal", n: 16 },
-    summer: { name: "여름", colors: ["#8fd3ec", "#b5e3f3", "#6cc3e3"], kind: "drop", n: 14 },
+    summer: { name: "여름", colors: ["#86cbe8", "#9dd5ee", "#74c2e3"], kind: "drop", n: 20 },
     autumn: { name: "가을", colors: ["#e8964a", "#d9692f", "#e9b949", "#c4552b"], kind: "leaf", n: 14 },
-    winter: { name: "겨울", colors: ["#ffffff", "#f3f7fd", "#dfe8f6"], kind: "snow", n: 26 },
+    winter: { name: "겨울", colors: ["#ffffff", "#f7faff", "#eef4fd"], kind: "snow", n: 34 },
   };
   const seasonOf = (k) => { const m = Number(k.slice(5, 7)); return m >= 3 && m <= 5 ? "spring" : m >= 6 && m <= 8 ? "summer" : m >= 9 && m <= 11 ? "autumn" : "winter"; };
   const sky = { season: null, parts: [], raf: 0, last: 0 };
@@ -1171,17 +1212,17 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
     return {
       x: Math.random() * w,
       y: anywhere ? Math.random() * h : (up ? h + 20 : -20),
-      s: cfg.kind === "snow" ? 2 + Math.random() * 3 : cfg.kind === "drop" ? 3 + Math.random() * 5 : 6 + Math.random() * 6,
+      s: cfg.kind === "snow" ? 3 + Math.random() * 5 : cfg.kind === "drop" ? 6 + Math.random() * 12 : 6 + Math.random() * 6,
       vy: (up ? -1 : 1) * (cfg.kind === "snow" ? 18 + Math.random() * 22 : 14 + Math.random() * 18),
       vx: -8 + Math.random() * 16,
       sway: Math.random() * Math.PI * 2, swaySpeed: .6 + Math.random() * .9,
       rot: Math.random() * Math.PI * 2, vr: -1 + Math.random() * 2,
       c: cfg.colors[Math.floor(Math.random() * cfg.colors.length)],
-      a: cfg.kind === "drop" ? .35 + Math.random() * .25 : .55 + Math.random() * .35,
+      a: cfg.kind === "drop" ? .55 + Math.random() * .25 : cfg.kind === "snow" ? .85 + Math.random() * .15 : .55 + Math.random() * .35,
     };
   }
   function drawPart(ctx, p, kind, dark) {
-    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.globalAlpha = p.a * (dark ? .7 : 1); ctx.fillStyle = p.c;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.globalAlpha = p.a * (dark && kind !== "snow" ? .75 : 1); ctx.fillStyle = p.c;
     if (kind === "petal") {
       ctx.beginPath(); ctx.moveTo(0, -p.s / 2);
       ctx.bezierCurveTo(p.s * .55, -p.s * .45, p.s * .5, p.s * .35, 0, p.s / 2);
@@ -1191,12 +1232,32 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
       ctx.globalAlpha *= .6; ctx.strokeStyle = "rgba(90,40,10,.5)"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(0, -p.s * .7); ctx.lineTo(0, p.s * .9); ctx.stroke();
     } else if (kind === "drop") {
-      ctx.beginPath(); ctx.arc(0, 0, p.s / 2, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha *= .9; ctx.fillStyle = "rgba(255,255,255,.8)";
-      ctx.beginPath(); ctx.arc(-p.s * .15, -p.s * .15, p.s * .14, 0, Math.PI * 2); ctx.fill();
+      // a soap-like bubble rising through water: clear middle, soft rim, a glint of light
+      ctx.rotate(-p.rot);
+      const r = p.s / 2;
+      const g = ctx.createRadialGradient(0, 0, r * .55, 0, 0, r);
+      g.addColorStop(0, "rgba(255,255,255,0)");
+      g.addColorStop(1, p.c);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = dark ? "rgba(190,230,250,.55)" : "rgba(60,150,200,.4)"; ctx.stroke();
+      ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = Math.max(1, r * .18); ctx.lineCap = "round";
+      ctx.beginPath(); ctx.arc(0, 0, r * .62, Math.PI * 1.08, Math.PI * 1.42); ctx.stroke();
     } else {
-      ctx.shadowColor = dark ? "rgba(255,255,255,.35)" : "rgba(80,110,160,.45)"; ctx.shadowBlur = 3;
-      ctx.beginPath(); ctx.arc(0, 0, p.s, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowColor = dark ? "rgba(200,225,255,.5)" : "rgba(50,85,140,.75)"; ctx.shadowBlur = 4;
+      if (p.s > 5.5) {
+        // a six-armed snow crystal
+        ctx.strokeStyle = dark ? "#eef4ff" : "#ffffff"; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+        for (let i = 0; i < 6; i++) {
+          ctx.rotate(Math.PI / 3);
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -p.s * 1.3);
+          ctx.moveTo(0, -p.s * .7); ctx.lineTo(p.s * .32, -p.s * 1); ctx.moveTo(0, -p.s * .7); ctx.lineTo(-p.s * .32, -p.s * 1);
+          ctx.stroke();
+        }
+      } else {
+        ctx.beginPath(); ctx.arc(0, 0, p.s * .75, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.lineWidth = 1; ctx.strokeStyle = dark ? "rgba(220,235,255,.5)" : "rgba(110,140,190,.55)"; ctx.stroke();
+      }
     }
     ctx.restore();
   }
@@ -1233,12 +1294,52 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
   }
   document.addEventListener("visibilitychange", () => { if (document.hidden) cancelAnimationFrame(sky.raf); else if (sky.season) startSky(); });
 
+  /* ---------- month calendar under the date ---------- */
+  let calOpen = false, calMonth = "";
+  function monthAdd(m, n) { const d = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1 + n, 1); return d.getFullYear() + "-" + pad(d.getMonth() + 1); }
+  function renderCalendar(k, today) {
+    $("calendar").hidden = !calOpen;
+    $("dateBtn").setAttribute("aria-expanded", calOpen ? "true" : "false");
+    if (!calOpen) return;
+    if (!calMonth) calMonth = k.slice(0, 7);
+    const y = Number(calMonth.slice(0, 4)), m = Number(calMonth.slice(5, 7));
+    const last = addDays(today, FUTURE_DAYS);
+    $("calLabel").textContent = y + "년 " + m + "월";
+    $("calNext").disabled = calMonth >= last.slice(0, 7);
+    const grid = $("calGrid");
+    grid.innerHTML = "";
+    DOW.forEach((w, i) => { const h = document.createElement("div"); h.className = "cal-dow" + (i === 0 ? " sun" : ""); h.textContent = w; grid.appendChild(h); });
+    const first = new Date(y, m - 1, 1), days = new Date(y, m, 0).getDate();
+    for (let i = 0; i < first.getDay(); i++) grid.appendChild(document.createElement("div"));
+    for (let dnum = 1; dnum <= days; dnum++) {
+      const dk = calMonth + "-" + pad(dnum), wd = new Date(y, m - 1, dnum).getDay();
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "cal-day" + (wd === 0 ? " sun" : "") + (dk === today ? " today" : "") + (dk === k ? " sel" : "");
+      b.disabled = dk > last;
+      const r = dk <= today ? ratio(dk) : 0, ev = (state.events[dk] || []).length;
+      let marks = "";
+      if (r >= 1 && state.tasks.length) marks += '<i class="full"></i>'; else if (r > 0) marks += '<i class="part"></i>';
+      if (ev) marks += '<i class="ev"></i>';
+      b.innerHTML = '<span class="n">' + dnum + '</span><span class="marks">' + marks + '</span>';
+      let label = m + "월 " + dnum + "일 " + DOW[wd] + "요일";
+      if (dk === today) label += ", 오늘";
+      if (r > 0) label += ", " + Math.round(r * 100) + "% 완료";
+      if (ev) label += ", 일정 " + ev + "개";
+      b.setAttribute("aria-label", label);
+      if (dk === k) b.setAttribute("aria-current", "date");
+      b.addEventListener("click", () => { calOpen = false; changeDay(dk); $("dateBtn").focus(); });
+      grid.appendChild(b);
+    }
+  }
+
   function render() {
     const k = state.selected, today = todayKey(), d = parseKey(k);
     const isFuture = k > today;
     setSeason(seasonOf(k));
     $("eyebrow").textContent = k.replace(/-/g, ".") + " · " + relDay(k, today);
     $("title").textContent = (d.getMonth() + 1) + "월 " + d.getDate() + "일 " + DOW[d.getDay()] + "요일";
+    renderCalendar(k, today);
     $("next").disabled = k >= addDays(today, FUTURE_DAYS);
     $("todayBtn").disabled = k === today;
 
@@ -1365,6 +1466,15 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
   $("prev").addEventListener("click", () => changeDay(addDays(state.selected, -1)));
   $("next").addEventListener("click", () => { if (state.selected < addDays(todayKey(), FUTURE_DAYS)) changeDay(addDays(state.selected, 1)); });
   $("todayBtn").addEventListener("click", () => changeDay(todayKey()));
+  $("dateBtn").addEventListener("click", () => {
+    calOpen = !calOpen; calMonth = state.selected.slice(0, 7); render();
+    if (calOpen) { const s = $("calGrid").querySelector(".sel") || $("calGrid").querySelector(".today"); if (s) s.focus(); }
+  });
+  $("calPrev").addEventListener("click", () => { calMonth = monthAdd(calMonth, -1); render(); });
+  $("calNext").addEventListener("click", () => { calMonth = monthAdd(calMonth, 1); render(); });
+  $("calToday").addEventListener("click", () => { calOpen = false; changeDay(todayKey()); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && calOpen) { calOpen = false; render(); $("dateBtn").focus(); } });
+  document.addEventListener("click", (e) => { if (calOpen && !e.target.closest("#calendar, #dateBtn")) { calOpen = false; render(); } });
   // hour/minute pickers: plain dropdowns work the same on every phone
   for (let h = 0; h < 24; h++) {
     const o = document.createElement("option");
