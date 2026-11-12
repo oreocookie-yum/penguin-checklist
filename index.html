@@ -211,8 +211,10 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
 .ev-up-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .ev-up-more { font-size: 12px; color: var(--muted); padding: 2px 14px 12px; }
 
-.week { padding: 14px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.day { background: none; border: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; border-radius: 10px; }
+.week { padding: 12px 14px 10px; display: flex; gap: 4px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+.week.fade-l { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 32px); mask-image: linear-gradient(to right, transparent 0, #000 32px); }
+.day { flex: 0 0 44px; scroll-snap-align: end; background: none; border: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; border-radius: 10px; }
+.day .mon { font-size: 11px; font-weight: 700; color: var(--accent); height: 14px; line-height: 14px; white-space: nowrap; }
 .day .dow { font-size: 12px; color: var(--muted); }
 .day .dot { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-mono); font-size: 12px; background: var(--line); color: var(--ink); position: relative; }
 .day .dot.part { background: var(--accent-soft); color: var(--accent); }
@@ -230,18 +232,24 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
 .chart { border-top: 1px solid var(--line); padding: 14px 14px 12px; }
 .chart-sum { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
 .chart-sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
-.plot { position: relative; height: 150px; margin-left: 30px; border-bottom: 1px solid var(--muted); }
+.chart-body { display: flex; align-items: flex-start; gap: 6px; }
+.yaxis { position: relative; flex-shrink: 0; width: 32px; height: 150px; }
+.yaxis span { position: absolute; right: 0; transform: translateY(50%); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chart-scroll { flex: 1; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+.chart-scroll.fade-l { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px); mask-image: linear-gradient(to right, transparent 0, #000 28px); }
+.chart-inner { min-width: 100%; }
+.plot { position: relative; height: 150px; border-bottom: 1px solid var(--muted); }
 .grid-l { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); }
-.grid-l span { position: absolute; right: calc(100% + 6px); top: -8px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .avg-l { position: absolute; left: 0; right: 0; border-top: 2px solid var(--ink); opacity: .55; z-index: 1; pointer-events: none; }
-.bars { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; }
+.bars { position: absolute; inset: 0; display: grid; gap: 8px; align-items: end; }
 .bcol { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; background: none; border: 0; padding: 0; min-width: 0; }
 .bcol .pv { font-size: 11px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; margin-bottom: 3px; }
 .bcol .b { width: 100%; max-width: 34px; min-height: 3px; border-radius: 6px 6px 0 0; background: var(--line); transition: height .35s ease; }
 .bcol .b.part { background: var(--mint); }
 .bcol .b.full { background: var(--mint-deep); }
 .bcol.sel .b { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
-.xlab { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-left: 30px; padding-top: 6px; }
+.xlab { display: grid; gap: 8px; padding-top: 6px; }
+.xlab span.m1 { color: var(--accent); font-weight: 700; }
 .xlab span { text-align: center; font-size: 11px; color: var(--muted); line-height: 1.3; }
 .xlab span b { display: block; color: var(--ink); font-weight: 700; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: var(--muted); margin-top: 10px; }
@@ -392,7 +400,7 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
 
   <section class="card">
     <div class="card-head">
-      <span class="label">최근 7일</span>
+      <span class="label">달성 기록</span>
       <div class="wk-tools">
         <span class="streak" id="streak">연속 달성 <b>0</b>일</span>
         <button class="chart-btn" id="chartBtn" type="button" aria-expanded="false" aria-controls="chart"><svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="7" width="3" height="6" rx="1"/><rect x="5.5" y="3" width="3" height="10" rx="1"/><rect x="10" y="5" width="3" height="8" rx="1"/></svg><span id="chartBtnText">그래프</span></button>
@@ -401,9 +409,16 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
     <div class="week" id="week"></div>
     <div class="chart" id="chart" hidden>
       <div class="chart-sum" id="chartSum"></div>
-      <div class="plot" id="plot"></div>
-      <div class="xlab" id="xlab"></div>
-      <div class="legend"><span><i style="background:var(--mint-deep)"></i>모두 완료</span><span><i style="background:var(--mint)"></i>일부 완료</span><span><i style="background:var(--line)"></i>기록 없음</span><span class="avg"><i></i>7일 평균</span></div>
+      <div class="chart-body">
+        <div class="yaxis" aria-hidden="true"><span style="bottom:100%">100%</span><span style="bottom:50%">50%</span><span style="bottom:0">0%</span></div>
+        <div class="chart-scroll" id="chartScroll">
+          <div class="chart-inner" id="chartInner">
+            <div class="plot" id="plot"></div>
+            <div class="xlab" id="xlab"></div>
+          </div>
+        </div>
+      </div>
+      <div class="legend"><span><i style="background:var(--mint-deep)"></i>모두 완료</span><span><i style="background:var(--mint)"></i>일부 완료</span><span><i style="background:var(--line)"></i>기록 없음</span><span class="avg"><i></i>기간 평균</span></div>
     </div>
   </section>
 
@@ -866,23 +881,54 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
     for (const b of $("moodGrid").children) b.setAttribute("aria-pressed", m && b.dataset.e === m.e ? "true" : "false");
   }
 
+  // how far back the strip and chart go: from the first day with any record (at least 7 days, at most 180)
+  const HISTORY_MAX = 180;
+  function historyDays(today, k) {
+    const min = addDays(today, -(HISTORY_MAX - 1));
+    let start = addDays(today, -6);
+    for (const src of [state.log, state.mood, state.journal]) for (const key of Object.keys(src)) if (key < start && key >= min) start = key;
+    if (k < start && k >= min) start = k;
+    const out = [];
+    for (let d = start; d <= today; d = addDays(d, 1)) out.push(d);
+    return out;
+  }
+  // keep a strip's scroll position across re-renders; start at the right end (today); bring the chosen day into view
+  const scrollMem = {};
+  function keepScroll(box, selEl, name) {
+    const m = scrollMem[name];
+    if (!m || m.atEnd) box.scrollLeft = box.scrollWidth;
+    else box.scrollLeft = m.left + (box.scrollWidth - m.width);
+    if (selEl) {
+      const l = selEl.getBoundingClientRect().left - box.getBoundingClientRect().left + box.scrollLeft, r = l + selEl.offsetWidth;
+      if (l < box.scrollLeft || r > box.scrollLeft + box.clientWidth) box.scrollLeft = l - box.clientWidth / 2 + selEl.offsetWidth / 2;
+    }
+    const upd = () => {
+      scrollMem[name] = { left: box.scrollLeft, width: box.scrollWidth, atEnd: box.scrollLeft + box.clientWidth >= box.scrollWidth - 4 };
+      box.classList.toggle("fade-l", box.scrollLeft > 4);
+    };
+    upd();
+    if (!box._kept) { box._kept = true; box.addEventListener("scroll", upd, { passive: true }); }
+  }
+
   function renderChart(k, today, total) {
     $("chart").hidden = !state.chartOpen;
     $("chartBtn").setAttribute("aria-expanded", state.chartOpen ? "true" : "false");
     $("chartBtnText").textContent = state.chartOpen ? "그래프 닫기" : "그래프";
     if (!state.chartOpen) return;
-    const days = [];
-    for (let i = 6; i >= 0; i--) { const dk = addDays(today, -i); days.push({ k: dk, d: parseKey(dk), p: Math.round(ratio(dk) * 100) }); }
-    const avg = Math.round(days.reduce((a, x) => a + x.p, 0) / 7);
+    const days = historyDays(today, k).map((dk) => ({ k: dk, d: parseKey(dk), p: Math.round(ratio(dk) * 100) }));
+    const avg = Math.round(days.reduce((a, x) => a + x.p, 0) / days.length);
+    const last7 = days.slice(-7), avg7 = Math.round(last7.reduce((a, x) => a + x.p, 0) / last7.length);
     const fullN = days.filter((x) => x.p >= 100 && total).length;
     const best = days.reduce((a, x) => (x.p > a.p ? x : a), days[0]);
-    $("chartSum").innerHTML = "<span>7일 평균 <b>" + avg + "%</b></span><span>모두 완료 <b>" + fullN + "</b>일</span>"
+    $("chartSum").innerHTML = "<span>" + days.length + "일 평균 <b>" + avg + "%</b></span>"
+      + (days.length > 7 ? "<span>최근 7일 평균 <b>" + avg7 + "%</b></span>" : "")
+      + "<span>모두 완료 <b>" + fullN + "</b>일</span>"
       + (best.p > 0 ? "<span>가장 잘한 날 <b>" + (best.d.getMonth() + 1) + "/" + best.d.getDate() + " " + DOW[best.d.getDay()] + " " + best.p + "%</b></span>" : "");
     const plot = $("plot");
     let h = "";
-    for (const g of [100, 50]) h += '<div class="grid-l" style="bottom:' + g + '%"><span>' + g + '%</span></div>';
+    for (const g of [100, 50]) h += '<div class="grid-l" style="bottom:' + g + '%"></div>';
     if (avg > 0) h += '<div class="avg-l" style="bottom:' + avg + '%"></div>';
-    h += '<div class="bars">';
+    h += '<div class="bars" style="grid-template-columns:repeat(' + days.length + ', 1fr)">';
     for (const x of days) {
       const cls = x.p >= 100 && total ? "full" : x.p > 0 ? "part" : "";
       h += '<button type="button" class="bcol' + (x.k === k ? " sel" : "") + '" data-k="' + x.k + '" aria-label="' + (x.d.getMonth() + 1) + "월 " + x.d.getDate() + "일 " + x.p + '% 완료">'
@@ -891,7 +937,10 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
     h += "</div>";
     plot.innerHTML = h;
     plot.querySelectorAll(".bcol").forEach((b) => b.addEventListener("click", () => { state.selected = b.dataset.k; state.moodSaid = null; state.pickerOpen = false; render(); }));
-    $("xlab").innerHTML = days.map((x) => "<span><b>" + DOW[x.d.getDay()] + "</b>" + (x.d.getMonth() + 1) + "/" + x.d.getDate() + "</span>").join("");
+    $("xlab").style.gridTemplateColumns = "repeat(" + days.length + ", 1fr)";
+    $("xlab").innerHTML = days.map((x) => "<span" + (x.d.getDate() === 1 ? ' class="m1"' : "") + "><b>" + DOW[x.d.getDay()] + "</b>" + (x.d.getMonth() + 1) + "/" + x.d.getDate() + "</span>").join("");
+    $("chartInner").style.width = (days.length * 40) + "px";
+    keepScroll($("chartScroll"), plot.querySelector(".bcol.sel"), "chart");
   }
 
   const FUTURE_DAYS = 365;
@@ -1162,18 +1211,21 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
 
     const week = $("week");
     week.innerHTML = "";
-    for (let i = 6; i >= 0; i--) {
-      const dk = addDays(today, -i), dd = parseKey(dk), r = ratio(dk);
+    const hist = historyDays(today, k);
+    for (const dk of hist) {
+      const dd = parseKey(dk), r = ratio(dk);
+      const mon = dk === hist[0] || dd.getDate() === 1 ? (dd.getMonth() + 1) + "월" : "";
       const dm = moodOf(state.mood[dk]);
       const b = document.createElement("button");
       b.type = "button"; b.className = "day" + (dk === k ? " sel" : "");
       const cls = r >= 1 && total ? "full" : r > 0 ? "part" : "";
-      b.innerHTML = '<span class="dow">' + DOW[dd.getDay()] + '</span><span class="dot ' + cls + '">' + dd.getDate() + '</span>'
+      b.innerHTML = '<span class="mon">' + mon + '</span><span class="dow">' + DOW[dd.getDay()] + '</span><span class="dot ' + cls + '">' + dd.getDate() + '</span>'
         + '<span class="dmood' + (dm ? "" : " none") + '" aria-hidden="true">' + (dm ? dm.e : "") + '</span>';
       b.setAttribute("aria-label", (dd.getMonth() + 1) + "월 " + dd.getDate() + "일, " + Math.round(r * 100) + "% 완료" + (dm ? ", 기분 " + dm.t : ""));
       b.addEventListener("click", () => { state.selected = dk; state.moodSaid = null; state.pickerOpen = false; render(); });
       week.appendChild(b);
     }
+    keepScroll(week, week.querySelector(".day.sel"), "week");
     $("streak").innerHTML = "연속 달성 <b>" + streak() + "</b>일";
     renderChart(k, today, total);
     watchJournalMonth();
