@@ -71,6 +71,25 @@ img { max-width: 100%; }
   --accent: #6f9cf0; --accent-soft: #22324c; --done: #4fd1b0; --done-soft: #173a33; --danger: #ec7a73;
   color-scheme: dark;
 }
+/* Seasons follow the viewed day: spring 3-5, summer 6-8, autumn 9-11, winter 12-2 */
+:root[data-season="spring"] { --done: #c94d7a; --bg: #fbecf1; --done-soft: #fde1ea; --add: #b83e66; --mint-deep: #b83e66; --mint: #ec9ab6; --accent: #b03a62; --accent-soft: #fbdbe6; }
+:root[data-season="summer"] { --done: #2a8cb8; --bg: #def2fa; --done-soft: #cdeef7; --add: #1f7fa8; --mint-deep: #1f7fa8; --mint: #79c6e3; --accent: #1c6f96; --accent-soft: #d3ecf7; }
+:root[data-season="autumn"] { --done: #c4652a; --bg: #f8ead8; --done-soft: #f6e0c4; --add: #b5561f; --mint-deep: #b5561f; --mint: #e9a86f; --accent: #a84d1a; --accent-soft: #f6dfc8; }
+:root[data-season="winter"] { --done: #4a72bb; --bg: #e8eef8; --done-soft: #dbe5f4; --add: #3b62a8; --mint-deep: #3b62a8; --mint: #95afdc; --accent: #345a9e; --accent-soft: #dbe5f5; }
+@media (prefers-color-scheme: dark) {
+  :root[data-season="spring"]:not([data-theme="light"]) { --done: #f08fb1; --bar-full: #f08fb1; --bg: #21161b; --done-soft: #3a2230; --add: #a8385d; --mint-deep: #b8456c; --mint: #5a2a3d; --accent: #f08fb1; --accent-soft: #3b2230; }
+  :root[data-season="summer"]:not([data-theme="light"]) { --done: #6fc3e8; --bar-full: #6fc3e8; --bg: #0d1b23; --done-soft: #143341; --add: #1d6f93; --mint-deep: #23779c; --mint: #1d4a5e; --accent: #6fc3e8; --accent-soft: #163646; }
+  :root[data-season="autumn"]:not([data-theme="light"]) { --done: #f0a76a; --bar-full: #f0a76a; --bg: #20180f; --done-soft: #3a2a17; --add: #a24c1a; --mint-deep: #a8541f; --mint: #5a3819; --accent: #f0a76a; --accent-soft: #3a2615; }
+  :root[data-season="winter"]:not([data-theme="light"]) { --done: #8fb0ec; --bar-full: #8fb0ec; --bg: #10161f; --done-soft: #1f2a3b; --add: #33569a; --mint-deep: #3d62a8; --mint: #2a3d5e; --accent: #8fb0ec; --accent-soft: #1e2a44; }
+}
+:root[data-theme="dark"][data-season="spring"] { --done: #f08fb1; --bar-full: #f08fb1; --bg: #21161b; --done-soft: #3a2230; --add: #a8385d; --mint-deep: #b8456c; --mint: #5a2a3d; --accent: #f08fb1; --accent-soft: #3b2230; }
+:root[data-theme="dark"][data-season="summer"] { --done: #6fc3e8; --bar-full: #6fc3e8; --bg: #0d1b23; --done-soft: #143341; --add: #1d6f93; --mint-deep: #23779c; --mint: #1d4a5e; --accent: #6fc3e8; --accent-soft: #163646; }
+:root[data-theme="dark"][data-season="autumn"] { --done: #f0a76a; --bar-full: #f0a76a; --bg: #20180f; --done-soft: #3a2a17; --add: #a24c1a; --mint-deep: #a8541f; --mint: #5a3819; --accent: #f0a76a; --accent-soft: #3a2615; }
+:root[data-theme="dark"][data-season="winter"] { --done: #8fb0ec; --bar-full: #8fb0ec; --bg: #10161f; --done-soft: #1f2a3b; --add: #33569a; --mint-deep: #3d62a8; --mint: #2a3d5e; --accent: #8fb0ec; --accent-soft: #1e2a44; }
+body { transition: background-color .6s ease; }
+.season-sky { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.wrap { position: relative; z-index: 1; }
+.season-tag { display: inline-block; margin-left: 6px; }
 * { box-sizing: border-box; }
 body {
   background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
@@ -246,7 +265,7 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
 .bcol .pv { font-size: 11px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; margin-bottom: 3px; }
 .bcol .b { width: 100%; max-width: 34px; min-height: 3px; border-radius: 6px 6px 0 0; background: var(--line); transition: height .35s ease; }
 .bcol .b.part { background: var(--mint); }
-.bcol .b.full { background: var(--mint-deep); }
+.bcol .b.full { background: var(--bar-full, var(--mint-deep)); }
 .bcol.sel .b { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
 .xlab { display: grid; gap: 8px; padding-top: 6px; }
 .xlab span.m1 { color: var(--accent); font-weight: 700; }
@@ -303,6 +322,7 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
 @media (max-width: 420px) { h1 { font-size: 28px; } .count { font-size: 38px; } .day .dot { width: 30px; height: 30px; } .mood-face { width: 50px; height: 50px; font-size: 27px; } .pup { width: 88px; height: 88px; } }
 </style>
 
+<canvas class="season-sky" id="seasonSky" aria-hidden="true"></canvas>
 <div class="wrap">
   <header>
     <div class="datebox">
@@ -418,7 +438,7 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
           </div>
         </div>
       </div>
-      <div class="legend"><span><i style="background:var(--mint-deep)"></i>모두 완료</span><span><i style="background:var(--mint)"></i>일부 완료</span><span><i style="background:var(--line)"></i>기록 없음</span><span class="avg"><i></i>기간 평균</span></div>
+      <div class="legend"><span><i style="background:var(--bar-full, var(--mint-deep))"></i>모두 완료</span><span><i style="background:var(--mint)"></i>일부 완료</span><span><i style="background:var(--line)"></i>기록 없음</span><span class="avg"><i></i>기간 평균</span></div>
     </div>
   </section>
 
@@ -1125,9 +1145,98 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
 
   const CHECK_SVG = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7"/></svg>';
 
+  /* ---------- seasons: background colour + a few drifting petals, drops, leaves or snow ---------- */
+  const SEASONS = {
+    spring: { name: "봄", colors: ["#f6b5c8", "#f9cbd8", "#f3a0b9"], kind: "petal", n: 16 },
+    summer: { name: "여름", colors: ["#8fd3ec", "#b5e3f3", "#6cc3e3"], kind: "drop", n: 14 },
+    autumn: { name: "가을", colors: ["#e8964a", "#d9692f", "#e9b949", "#c4552b"], kind: "leaf", n: 14 },
+    winter: { name: "겨울", colors: ["#ffffff", "#f3f7fd", "#dfe8f6"], kind: "snow", n: 26 },
+  };
+  const seasonOf = (k) => { const m = Number(k.slice(5, 7)); return m >= 3 && m <= 5 ? "spring" : m >= 6 && m <= 8 ? "summer" : m >= 9 && m <= 11 ? "autumn" : "winter"; };
+  const sky = { season: null, parts: [], raf: 0, last: 0 };
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  function setSeason(season) {
+    if (sky.season === season) return;
+    sky.season = season;
+    document.documentElement.setAttribute("data-season", season);
+    try {
+      const bg = getComputedStyle(document.body).getPropertyValue("--bg").trim() || getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+      document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { if (bg) m.setAttribute("content", bg); });
+    } catch (e) {}
+    sky.parts = [];
+    startSky();
+  }
+  function newPart(cfg, w, h, anywhere) {
+    const up = cfg.kind === "drop";
+    return {
+      x: Math.random() * w,
+      y: anywhere ? Math.random() * h : (up ? h + 20 : -20),
+      s: cfg.kind === "snow" ? 2 + Math.random() * 3 : cfg.kind === "drop" ? 3 + Math.random() * 5 : 6 + Math.random() * 6,
+      vy: (up ? -1 : 1) * (cfg.kind === "snow" ? 18 + Math.random() * 22 : 14 + Math.random() * 18),
+      vx: -8 + Math.random() * 16,
+      sway: Math.random() * Math.PI * 2, swaySpeed: .6 + Math.random() * .9,
+      rot: Math.random() * Math.PI * 2, vr: -1 + Math.random() * 2,
+      c: cfg.colors[Math.floor(Math.random() * cfg.colors.length)],
+      a: cfg.kind === "drop" ? .35 + Math.random() * .25 : .55 + Math.random() * .35,
+    };
+  }
+  function drawPart(ctx, p, kind, dark) {
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.globalAlpha = p.a * (dark ? .7 : 1); ctx.fillStyle = p.c;
+    if (kind === "petal") {
+      ctx.beginPath(); ctx.moveTo(0, -p.s / 2);
+      ctx.bezierCurveTo(p.s * .55, -p.s * .45, p.s * .5, p.s * .35, 0, p.s / 2);
+      ctx.bezierCurveTo(-p.s * .5, p.s * .35, -p.s * .55, -p.s * .45, 0, -p.s / 2); ctx.fill();
+    } else if (kind === "leaf") {
+      ctx.beginPath(); ctx.ellipse(0, 0, p.s * .38, p.s * .7, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha *= .6; ctx.strokeStyle = "rgba(90,40,10,.5)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, -p.s * .7); ctx.lineTo(0, p.s * .9); ctx.stroke();
+    } else if (kind === "drop") {
+      ctx.beginPath(); ctx.arc(0, 0, p.s / 2, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha *= .9; ctx.fillStyle = "rgba(255,255,255,.8)";
+      ctx.beginPath(); ctx.arc(-p.s * .15, -p.s * .15, p.s * .14, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.shadowColor = dark ? "rgba(255,255,255,.35)" : "rgba(80,110,160,.45)"; ctx.shadowBlur = 3;
+      ctx.beginPath(); ctx.arc(0, 0, p.s, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function startSky() {
+    const cv = $("seasonSky");
+    cancelAnimationFrame(sky.raf);
+    const ctx = cv.getContext && cv.getContext("2d");
+    if (!ctx) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const size = () => { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+    size();
+    if (!sky.sized) { sky.sized = true; addEventListener("resize", () => { size(); if (reduceMotion.matches) drawStill(); }); }
+    const cfg = SEASONS[sky.season], w = innerWidth, h = innerHeight;
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.getAttribute("data-theme") !== "light" || document.documentElement.getAttribute("data-theme") === "dark";
+    const count = Math.round(cfg.n * Math.min(1.6, Math.max(.7, w / 600)));
+    while (sky.parts.length < count) sky.parts.push(newPart(cfg, w, h, true));
+    function drawStill() { ctx.clearRect(0, 0, innerWidth, innerHeight); for (const p of sky.parts) drawPart(ctx, p, cfg.kind, dark); }
+    if (reduceMotion.matches) { drawStill(); return; }
+    sky.last = performance.now();
+    const step = (t) => {
+      const dt = Math.min(.05, (t - sky.last) / 1000); sky.last = t;
+      const W = innerWidth, H = innerHeight;
+      ctx.clearRect(0, 0, W, H);
+      for (let i = 0; i < sky.parts.length; i++) {
+        const p = sky.parts[i];
+        p.sway += p.swaySpeed * dt;
+        p.x += (p.vx + Math.sin(p.sway) * 14) * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+        if (p.y > H + 30 || p.y < -30 || p.x < -30 || p.x > W + 30) sky.parts[i] = newPart(cfg, W, H, false);
+        drawPart(ctx, sky.parts[i], cfg.kind, dark);
+      }
+      sky.raf = requestAnimationFrame(step);
+    };
+    sky.raf = requestAnimationFrame(step);
+  }
+  document.addEventListener("visibilitychange", () => { if (document.hidden) cancelAnimationFrame(sky.raf); else if (sky.season) startSky(); });
+
   function render() {
     const k = state.selected, today = todayKey(), d = parseKey(k);
     const isFuture = k > today;
+    setSeason(seasonOf(k));
     $("eyebrow").textContent = k.replace(/-/g, ".") + " · " + relDay(k, today);
     $("title").textContent = (d.getMonth() + 1) + "월 " + d.getDate() + "일 " + DOW[d.getDay()] + "요일";
     $("next").disabled = k >= addDays(today, FUTURE_DAYS);
