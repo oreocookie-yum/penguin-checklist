@@ -164,7 +164,7 @@ h1 { font-family: var(--f-display); font-weight: 400; font-size: 34px; line-heig
 /* today's mood: badge beside the penguin + picker panel */
 .mood-btn { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: 0; padding: 0; }
 .mood-face { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; line-height: 1; background: var(--paper); border: 1px solid var(--line); transition: transform .15s; }
-.mood-btn.empty .mood-face { border: 2px dashed var(--line); color: var(--muted); font-size: 22px; }
+.mood-btn.no-mood .mood-face { border: 2px dashed var(--line); color: var(--muted); font-size: 22px; }
 .mood-btn[aria-expanded="true"] .mood-face { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
 .mood-btn:not(:disabled):hover .mood-face { transform: scale(1.06); }
 .mood-btn:disabled { cursor: default; opacity: .45; }
@@ -390,7 +390,7 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
       <img class="wingR" src="images/penguin-wing-r.png" width="200" height="200" alt="">
     </div>
     <div class="bubble" id="cheerText" aria-live="polite">오늘도 화이팅!</div>
-    <button class="mood-btn empty" id="moodBtn" type="button" aria-expanded="false" aria-controls="moodPicker">
+    <button class="mood-btn no-mood" id="moodBtn" type="button" aria-expanded="false" aria-controls="moodPicker">
       <span class="mood-face" id="moodFace" aria-hidden="true">＋</span>
       <span class="mood-cap" id="moodCap">오늘 기분</span>
     </button>
@@ -937,7 +937,7 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
     const btn = $("moodBtn");
     if (isFuture) state.pickerOpen = false;
     btn.disabled = isFuture;
-    btn.classList.toggle("empty", !m);
+    btn.classList.toggle("no-mood", !m);
     $("moodFace").textContent = m ? m.e : "＋";
     $("moodCap").textContent = m ? m.t : (k === today ? "오늘 기분" : "그날 기분");
     btn.setAttribute("aria-label", (k === today ? "오늘" : "이 날") + "의 기분" + (m ? ": " + m.t + ", 바꾸기" : " 고르기"));
