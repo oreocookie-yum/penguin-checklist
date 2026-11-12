@@ -1,6 +1,6 @@
 // Offline support: keep the app's own files on the phone so it opens without internet.
 // Change VERSION whenever any file changes, so phones pick up the new version.
-const VERSION = "penguin-checklist-v18";
+const VERSION = "penguin-checklist-v19";
 const FILES = [
   "./",
   "index.html",
