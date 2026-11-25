@@ -175,14 +175,14 @@ h1 { font-family: var(--f-display); font-weight: 400; font-size: 34px; line-heig
 
 .mood-picker { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin-top: -8px; }
 .mood-picker .mp-head { display: flex; justify-content: space-between; align-items: center; padding: 0 4px 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--muted); }
-.mood-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+.mood-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 .mood-opt { background: none; border: 0; border-radius: 10px; padding: 6px 0; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
 .mood-opt .e { font-size: 28px; line-height: 1.1; }
 .mood-opt .t { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .mood-opt:hover { background: var(--bg); }
 .mood-opt[aria-pressed="true"] { background: var(--accent-soft); }
 .mood-opt[aria-pressed="true"] .t { color: var(--accent); font-weight: 700; }
-@media (max-width: 480px) { .mood-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 340px) { .mood-grid { grid-template-columns: repeat(4, 1fr); } }
 
 .progress { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 16px; }
 .count { font-family: var(--f-display); font-size: 44px; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -520,9 +520,11 @@ form.ev-add #evDate, .ev-editing .ev-edate { flex-basis: 100%; }
   const LS_KEY = "daily-checklist-v1";
   const MOODS = [
     { e: "😆", t: "신나요", say: "신나는 하루네요! 그 기분 그대로!" },
+    { e: "🥰", t: "설레요", say: "설레는 일이 있나 봐요! 좋은 하루 될 거예요." },
     { e: "😊", t: "좋아요", say: "기분 좋은 날이에요. 같이 힘내요!" },
     { e: "😌", t: "편안해요", say: "편안한 마음으로 하나씩 해 봐요." },
     { e: "😐", t: "그냥 그래요", say: "그런 날도 있죠. 작은 것부터 해 봐요." },
+    { e: "😬", t: "떨려요", say: "떨리는 날이군요. 할 수 있어요, 내가 응원할게요!" },
     { e: "😴", t: "피곤해요", say: "피곤하구나… 무리하지 말고 쉬엄쉬엄!" },
     { e: "😰", t: "걱정돼요", say: "걱정이 있군요. 하나씩 하면 괜찮아질 거예요." },
     { e: "😢", t: "슬퍼요", say: "토닥토닥, 오늘은 내가 옆에 있을게요." },
